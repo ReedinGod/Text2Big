@@ -4,6 +4,7 @@ import textwrap
 import threading
 import logging
 import time
+import tempfile
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageDraw, ImageFont
@@ -12,20 +13,21 @@ from PIL import Image, ImageDraw, ImageFont
 DEFAULT_SMALL_TEXT = "生命在于运动"
 
 # 尺寸控制 (单位：像素)
-LARGE_MASK_SIZE = 20     # 大字轮廓字号
-SMALL_TEXT_SIZE = 12      # 填充小字的实际字号
-GAP = 1                   # 小字之间的像素间距
-MAX_CHARS_PER_LINE = 15   # 大字每行最大字数（超出自动换行）
+LARGE_MASK_SIZE = 35      # 适合长文的大字轮廓字号
+SMALL_TEXT_SIZE = 12      # 填充小字字号
+GAP = 1                   # 小字间距
+MAX_CHARS_PER_LINE = 15   # 大字每行最大字数
 
-# 颜色设置 (RGB格式)
+# 颜色设置
 BG_COLOR = (255, 255, 255) # 白色背景
 TEXT_COLOR = (0, 0, 0)     # 黑色小字
 
-# 日志与输出路径
-LOG_FILE = os.path.expanduser("~/Desktop/字中字生成器_运行日志.log")
+# 日志路径 (跨平台兼容：自动存放在系统临时文件夹，重启即焚)
+TEMP_DIR = tempfile.gettempdir()
+LOG_FILE = os.path.join(TEMP_DIR, "字中字生成器_运行日志.log")
 # =========================================
 
-# 初始化日志模块
+# 初始化无痕日志
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.INFO,
@@ -85,7 +87,6 @@ def process_image(large_text, small_text, save_path):
         mask_img = Image.new('1', (mask_w, mask_h), color=1)
         ImageDraw.Draw(mask_img).multiline_text((margin, margin), wrapped_large_text, font=mask_font, fill=0, align="center")
         
-        # 裁剪边缘
         real_bbox = mask_img.getbbox()
         if not real_bbox:
             raise ValueError("生成失败，可能输入了不支持的符号。")
@@ -109,16 +110,19 @@ def process_image(large_text, small_text, save_path):
                     char_index += 1
                     final_draw.text((x * step, y * step), char, font=render_font, fill=TEXT_COLOR)
 
-        # 3. 保存文件
-        final_img.save(save_path, "PNG")
-        elapsed_time = round(time.time() - start_time, 2)
-        logging.info(f"✅ 任务成功完成！图片已保存至: {save_path} (耗时: {elapsed_time}秒)")
+        # 3. 保存高压缩文件
+        # 【核心修复】：强制转换为 RGB 并以 JPEG 格式保存，启用质量压缩
+        final_img.convert('RGB').save(save_path, "JPEG", quality=75)
         
-        root.after(0, lambda: messagebox.showinfo("完成", f"图片已成功保存！\n耗时: {elapsed_time} 秒"))
+        file_size_kb = round(os.path.getsize(save_path) / 1024, 2)
+        elapsed_time = round(time.time() - start_time, 2)
+        logging.info(f"✅ 任务成功完成！图片已保存至: {save_path} (体积: {file_size_kb}KB, 耗时: {elapsed_time}秒)")
+        
+        root.after(0, lambda: messagebox.showinfo("完成", f"图片已成功保存！\n文件大小: {file_size_kb} KB\n耗时: {elapsed_time} 秒"))
 
     except Exception as e:
         logging.error(f"❌ 发生异常: {str(e)}", exc_info=True)
-        root.after(0, lambda err=e: messagebox.showerror("发生错误", f"详情请查看桌面日志文件：\n{str(err)}"))
+        root.after(0, lambda err=e: messagebox.showerror("发生错误", f"发生错误：\n{str(err)}"))
     finally:
         root.after(0, reset_button)
 
@@ -136,11 +140,13 @@ def on_generate():
     if not small_text:
         small_text = DEFAULT_SMALL_TEXT
         
-    # 主线程安全弹窗
+    safe_name = "".join(c for c in large_text[:4] if c.isalnum() or c in ['\u4e00', '\u9fa5'])
+    
+    # 【核心修复】：将默认弹窗的格式改为 JPG
     save_path = filedialog.asksaveasfilename(
-        defaultextension=".png",
-        filetypes=[("PNG图片", "*.png")],
-        initialfile=f"字中字_{large_text[:4]}.png",
+        defaultextension=".jpg",
+        filetypes=[("JPEG图片", "*.jpg"), ("PNG图片", "*.png")],
+        initialfile=f"字中字_{safe_name}.jpg",
         title="选择保存位置"
     )
     
@@ -157,11 +163,11 @@ def on_generate():
 if __name__ == "__main__":
     logging.info("========== 字中字生成器启动 ==========")
     root = tk.Tk()
-    root.title("字中字生成器 v3.0")
+    root.title("字中字生成器 v4.0 (极速高压版)")
     root.geometry("350x220")
     root.eval('tk::PlaceWindow . center')
 
-    tk.Label(root, text="输入大轮廓字：").pack(pady=5)
+    tk.Label(root, text="输入大轮廓字(支持长句)：").pack(pady=5)
     entry_large = tk.Entry(root, width=30)
     entry_large.pack()
 
