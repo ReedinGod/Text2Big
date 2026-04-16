@@ -1,5 +1,6 @@
 import os
 import platform
+import textwrap
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageDraw, ImageFont
@@ -9,11 +10,15 @@ def process_image(large_text, small_text, save_path):
     try:
         # 1. 识别系统字体
         system = platform.system()
+        font_path = None
         if system == "Windows":
-            font_path = "C:/Windows/Fonts/msyh.ttc"
-            if not os.path.exists(font_path): font_path = "C:/Windows/Fonts/simhei.ttf"
+            # Windows 标准苹方或黑体路径
+            possible_fonts = [
+                "C:/Windows/Fonts/msyh.ttc",
+                "C:/Windows/Fonts/simhei.ttf"
+            ]
         else:
-            # 遍历 Mac 所有新老版本可能的中文字体路径
+            # Mac 所有新老版本可能的中文字体路径（天罗地网版）
             possible_fonts = [
                 "/System/Library/Fonts/PingFang.ttc",
                 "/System/Library/Fonts/Supplemental/PingFang.ttc",
@@ -21,33 +26,40 @@ def process_image(large_text, small_text, save_path):
                 "/System/Library/Fonts/STHeiti Medium.ttc",
                 "/System/Library/Fonts/Hiragino Sans GB.ttc"
             ]
-            font_path = None
-            for f in possible_fonts:
-                if os.path.exists(f):
-                    font_path = f
-                    break
-                    
-        if not font_path:
-            raise FileNotFoundError("在您的 Mac 上找不到任何系统自带的中文字体！")
+            
+        for f in possible_fonts:
+            if os.path.exists(f):
+                font_path = f
+                break
 
-        mask_font_size = 20
+        if not font_path:
+            raise FileNotFoundError("在您的系统上找不到任何系统自带的中文字体！")
+
+        mask_font_size = 100
         mask_font = ImageFont.truetype(font_path, mask_font_size)
         render_font = ImageFont.truetype(font_path, 12)
 
-        # 2. 掩模生成
-        temp_w = mask_font_size * len(large_text)
-        temp_img = Image.new('1', (temp_w, mask_font_size + 50), color=1)
-        ImageDraw.Draw(temp_img).text((0, 0), large_text, font=mask_font, fill=0)
-        
-        bbox = temp_img.getbbox()
-        if not bbox:
-            raise ValueError("生成失败，可能输入了不支持的符号。")
-        
-        mask_img = temp_img.crop(bbox)
-        mask_w, mask_h = mask_img.size
+        # 2. 掩模生成 (修复版：支持多行排版大字)
+        # 【核心修复】：设置大字每行最多多少个字，超过自动换行
+        max_mask_width_chars = 15 
+        wrapped_large_text = textwrap.fill(large_text, width=max_mask_width_chars)
 
+        # 创建临时画布来测量多行大字的实际尺寸 (使用新版 multiline 方法)
+        temp_draw = ImageDraw.Draw(Image.new('1', (1, 1)))
+        bbox = temp_draw.multiline_textbbox((0, 0), wrapped_large_text, font=mask_font)
+        wrapped_w = bbox[2] - bbox[0]
+        wrapped_h = bbox[3] - bbox[1]
+
+        # 创建精准的掩模画布（留一点边距）
+        mask_w = wrapped_w + 20
+        mask_h = wrapped_h + 20
+        mask_img = Image.new('1', (mask_w, mask_h), color=1)
+        # 居中绘制多行大字
+        ImageDraw.Draw(mask_img).multiline_text((10, 10), wrapped_large_text, font=mask_font, fill=0, align="center")
+        
         # 3. 高清绘制
         step = 13
+        # 自动换行后，final_img 的比例会趋于合理
         final_img = Image.new('RGB', (mask_w * step, mask_h * step), color=(255, 255, 255))
         final_draw = ImageDraw.Draw(final_img)
 
@@ -85,7 +97,7 @@ def on_generate():
     if not small_text:
         small_text = "生命在于运动"
         
-    # 【核心修复】：在启动后台线程前，先在主线程安全地弹出保存窗口！
+    # 在主线程弹出保存窗口
     save_path = filedialog.asksaveasfilename(
         defaultextension=".png",
         filetypes=[("PNG图片", "*.png")],
@@ -94,7 +106,7 @@ def on_generate():
     )
     
     if not save_path:
-        return # 用户点了取消，直接退出，不卡死
+        return # 用户点了取消
 
     # 禁用按钮，提示状态
     btn_generate.config(text="拼命计算中(长句较慢)...", state=tk.DISABLED)
@@ -105,7 +117,7 @@ def on_generate():
 
 # ================= GUI 绘制部分 =================
 root = tk.Tk()
-root.title("字中字生成器 v2.0")
+root.title("字中字生成器 v2.1")
 root.geometry("350x220")
 root.eval('tk::PlaceWindow . center')
 
