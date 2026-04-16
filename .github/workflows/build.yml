@@ -20,7 +20,7 @@ jobs:
             name: Mac-M芯片
             arch: arm64
           # 云端魔法：在 M 芯片云电脑上，直接部署 Intel 版 Python
-          - os: macos-14
+          - os: macos-12
             name: Mac-Intel
             arch: x64
 
