@@ -4,6 +4,7 @@ on:
   push:
     branches: [ "main" ]
 
+# 消除 Node.js 警告
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -14,8 +15,14 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
+            arch: x64
           - os: macos-14
             name: Mac-M芯片
+            arch: arm64
+          # 云端魔法：在 M 芯片云电脑上，直接部署 Intel 版 Python
+          - os: macos-14
+            name: Mac-Intel
+            arch: x64
 
     runs-on: ${{ matrix.os }}
 
@@ -27,6 +34,8 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        # 核心：根据矩阵自动下载对应架构的 Python
+        architecture: ${{ matrix.arch }}
 
     - name: Install dependencies
       run: |
@@ -34,6 +43,7 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
+    # 去掉所有花里胡哨的跨编译指令，让环境顺其自然地产出
     - name: Build with PyInstaller
       run: pyinstaller --onefile --windowed app.py
 
