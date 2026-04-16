@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "main" ]
 
-# 消除 Node.js 警告
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -15,21 +14,8 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
-            arch: x64
-            # Windows 正常打包
-            build_cmd: pyinstaller --onefile --windowed app.py
-            
           - os: macos-14
             name: Mac-M芯片
-            arch: arm64
-            # 强行锁死打包为 M 芯片原生架构
-            build_cmd: pyinstaller --onefile --windowed --target-architecture arm64 app.py
-            
-          - os: macos-14
-            name: Mac-Intel
-            arch: x64
-            # 强行锁死打包为老款 Intel 架构 (x86_64)
-            build_cmd: pyinstaller --onefile --windowed --target-architecture x86_64 app.py
 
     runs-on: ${{ matrix.os }}
 
@@ -41,7 +27,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        architecture: ${{ matrix.arch }}
 
     - name: Install dependencies
       run: |
@@ -49,9 +34,8 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    # 执行我们在上方配置好的专属打包命令
     - name: Build with PyInstaller
-      run: ${{ matrix.build_cmd }}
+      run: pyinstaller --onefile --windowed app.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
