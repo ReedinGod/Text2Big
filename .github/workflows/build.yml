@@ -1,13 +1,15 @@
 name: Build App
 
-# 当你每次推送代码到 main 分支时，自动触发打包
 on:
   push:
     branches: [ "main" ]
 
+# 告诉 GitHub 强制使用最新的 Node.js 24 运行所有动作，消除警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
-    # 启用矩阵策略，同时启动一台 Mac 和一台 Windows 云电脑
     strategy:
       matrix:
         os: [windows-latest, macos-latest]
@@ -15,30 +17,23 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    # 1. 抓取你的代码
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 安装 Python 环境
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
-    # 3. 安装依赖和打包工具 (PyInstaller)
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
 
-    # 4. 执行打包操作
-    # --onefile 表示打包成单文件
-    # --windowed 表示运行时不显示黑色的命令行控制台
     - name: Build with PyInstaller
       run: pyinstaller --onefile --windowed app.py
 
-    # 5. 将打包好的软件提取出来供你下载
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
