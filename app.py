@@ -35,7 +35,7 @@ def process_image(large_text, small_text, save_path):
         if not font_path:
             raise FileNotFoundError("在您的系统上找不到任何系统自带的中文字体！")
 
-        mask_font_size = 100
+        mask_font_size = 20
         mask_font = ImageFont.truetype(font_path, mask_font_size)
         render_font = ImageFont.truetype(font_path, 12)
 
