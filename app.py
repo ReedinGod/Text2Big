@@ -23,7 +23,7 @@ def generate_mosaic_image(large_text, small_text):
         return False, f"找不到系统字体: {font_path}"
 
     try:
-        mask_font = ImageFont.truetype(font_path, 200)
+        mask_font = ImageFont.truetype(font_path, 20)
         render_font = ImageFont.truetype(font_path, 12)
     except Exception as e:
         return False, f"字体加载失败: {e}"
