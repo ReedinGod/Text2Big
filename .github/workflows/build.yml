@@ -4,15 +4,22 @@ on:
   push:
     branches: [ "main" ]
 
-# 告诉 GitHub 强制使用最新的 Node.js 24 运行所有动作，消除警告
+# 消除 Node.js 版本警告
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
     strategy:
+      # 使用 include 来精确定义我们需要的三种系统环境
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-13      # macos-13 在 GitHub 上对应的是 Intel 芯片的机器
+            name: Mac-Intel
+          - os: macos-14      # macos-14 在 GitHub 上对应的是 M 系列芯片的机器
+            name: Mac-M芯片
 
     runs-on: ${{ matrix.os }}
 
@@ -34,8 +41,9 @@ jobs:
     - name: Build with PyInstaller
       run: pyinstaller --onefile --windowed app.py
 
+    # 将生成的 Artifact 名字加上对应的芯片后缀
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: 独立软件-${{ matrix.os }}
+        name: 独立软件-${{ matrix.name }}
         path: dist/
