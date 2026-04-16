@@ -4,22 +4,25 @@ on:
   push:
     branches: [ "main" ]
 
-# 消除 Node.js 版本警告
+# 消除 Node.js 警告
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
     strategy:
-      # 使用 include 来精确定义我们需要的三种系统环境
       matrix:
+        # 定义三种组合，重点在于 arch (架构) 参数的不同
         include:
           - os: windows-latest
             name: Windows
-          - os: macos-13      # macos-13 在 GitHub 上对应的是 Intel 芯片的机器
-            name: Mac-Intel
-          - os: macos-14      # macos-14 在 GitHub 上对应的是 M 系列芯片的机器
+            arch: x64
+          - os: macos-14
             name: Mac-M芯片
+            arch: arm64  # M 芯片原生架构
+          - os: macos-14
+            name: Mac-Intel
+            arch: x64    # 瞒天过海：在 M 芯片电脑上强行指定 Intel 架构
 
     runs-on: ${{ matrix.os }}
 
@@ -31,6 +34,8 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        # 核心魔法：根据上方矩阵定义的架构，下载对应版本的 Python
+        architecture: ${{ matrix.arch }} 
 
     - name: Install dependencies
       run: |
@@ -41,7 +46,6 @@ jobs:
     - name: Build with PyInstaller
       run: pyinstaller --onefile --windowed app.py
 
-    # 将生成的 Artifact 名字加上对应的芯片后缀
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
