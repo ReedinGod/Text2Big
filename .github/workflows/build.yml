@@ -18,10 +18,6 @@ jobs:
           - os: macos-14
             name: Mac-M芯片
             arch: arm64
-          # 换成 macos-13 (这是现存最老的 Intel 服务器)
-          - os: macos-13
-            name: Mac-Intel
-            arch: x64
 
     runs-on: ${{ matrix.os }}
 
@@ -40,11 +36,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
-
-    - name: Build with PyInstaller (Mac Intel 向下兼容)
-      if: matrix.name == 'Mac-Intel'
-      # 施加魔法：强制打包出兼容 macOS 12 的程序
-      run: env MACOSX_DEPLOYMENT_TARGET=12.0 pyinstaller --onefile --windowed app.py
 
     - name: Build with PyInstaller (Windows / Mac M芯片)
       if: matrix.name != 'Mac-Intel'
